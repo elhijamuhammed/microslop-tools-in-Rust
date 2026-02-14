@@ -75,6 +75,7 @@ impl eframe::App for App {
                     ui.heading("Logs");
                     ui.separator();
                     ui.label("Logs view (not implemented).");
+                    
                 }
             }
         });
