@@ -1,5 +1,6 @@
-mod classes;
-mod helpers;
+mod models;
+mod collectors;
+mod formats;
 
 use eframe::egui;
 
@@ -14,6 +15,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Microslop Tools",
         options,
-        Box::new(|_| Ok(Box::<classes::App>::default())),
+        Box::new(|_| Ok(Box::<models::App>::default())),
     )
 }

@@ -1,9 +1,7 @@
 use std::cmp::Ordering;
 use std::time::{Duration, Instant};
-
 use sysinfo::ProcessesToUpdate;
-
-use crate::classes::{App, ProcRow, Tool};
+use crate::models::{App, ProcRow, Tool};
 
 pub fn init_app() -> App {
     let mut sys = sysinfo::System::new_all();
@@ -109,12 +107,4 @@ pub fn refresh_processes(app: &mut App, dt: f64) {
 
     rows.sort_by(|a, b| b.cpu.partial_cmp(&a.cpu).unwrap_or(Ordering::Equal));
     app.processes = rows;
-}
-
-pub fn bytes_to_mb(bytes: u64) -> f64 {
-    bytes as f64 / (1024.0 * 1024.0)
-}
-
-pub fn bps_to_mbps(bps: f64) -> f64 {
-    bps / (1024.0 * 1024.0)
 }

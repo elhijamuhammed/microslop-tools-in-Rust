@@ -1,6 +1,6 @@
 use sysinfo::{Networks, System};
 use std::{collections::HashMap, time::{Instant, Duration}};
-use crate::helpers;
+use crate::formats;
 
 #[derive(Clone)]
 pub struct ProcRow {
@@ -40,14 +40,14 @@ pub enum Tool {
 
 impl Default for App {
     fn default() -> Self {
-        crate::helpers::init_app()
+        crate::collectors::init_app()
     }
 }
 
 // Real methods (so main.rs can call self.refresh_everything())
 impl App {
     pub fn refresh_everything(&mut self) {
-        crate::helpers::refresh_everything(self);
+        crate::collectors::refresh_everything(self);
     }
 }
 
@@ -112,8 +112,8 @@ impl eframe::App for App {
                     ui.separator();
                     ui.label(format!(
                         "Net: ↓ {:.2} MB/s  ↑ {:.2} MB/s",
-                        helpers::bps_to_mbps(self.net_rx_bps),
-                        helpers::bps_to_mbps(self.net_tx_bps),
+                        formats::bps_to_mbps(self.net_rx_bps),
+                        formats::bps_to_mbps(self.net_tx_bps),
                     ));
 
                     ui.separator();
@@ -144,9 +144,9 @@ impl eframe::App for App {
                                 ui.label(p.pid.to_string());
                                 ui.label(&p.name);
                                 ui.label(format!("{:.1} %", p.cpu));
-                                ui.label(format!("{:.1} MB", helpers::bytes_to_mb(p.memory_bytes)));
-                                ui.label(format!("{:.2} MB/s", helpers::bps_to_mbps(p.read_bps)));
-                                ui.label(format!("{:.2} MB/s", helpers::bps_to_mbps(p.write_bps)));
+                                ui.label(format!("{:.1} MB", formats::bytes_to_mb(p.memory_bytes)));
+                                ui.label(format!("{:.2} MB/s", formats::bps_to_mbps(p.read_bps)));
+                                ui.label(format!("{:.2} MB/s", formats::bps_to_mbps(p.write_bps)));
                                 ui.end_row();
                             }
                         });
