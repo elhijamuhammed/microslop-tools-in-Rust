@@ -1,5 +1,6 @@
-use sysinfo::{Networks, System};
-use std::{collections::HashMap, time::{Instant, Duration}};
+use sysinfo::{ Networks, System };
+use std::{ collections::HashMap, time::{Duration, Instant} };
+
 use crate::formats;
 
 #[derive(Clone)]
@@ -30,6 +31,9 @@ pub struct App {
     pub last_refresh: Instant,
     pub auto_refresh: bool,
     pub refresh_ms: u64,
+
+    // NEW: selection
+    pub selected_pid: Option<i32>,
 }
 
 #[derive(PartialEq)]
@@ -95,6 +99,8 @@ impl eframe::App for App {
                     ctx.request_repaint();
                 }
 
+                let has_selection = self.selected_pid.is_some();
+
                 ui.horizontal(|ui| {
                     if ui.button("Refresh").clicked() {
                         self.refresh_everything();
@@ -118,9 +124,13 @@ impl eframe::App for App {
                     ));
 
                     ui.separator();
-                    ui.add_enabled(false, egui::Button::new("Kill"));
-                    ui.add_enabled(false, egui::Button::new("Details"));
+                    ui.add_enabled(has_selection, egui::Button::new("Kill"));
+                    ui.add_enabled(has_selection, egui::Button::new("Details"));
                 });
+
+                if let Some(pid) = self.selected_pid {
+                    ui.label(format!("Selected PID: {}", pid));
+                }
 
                 if let Some(err) = &self.error {
                     ui.colored_label(egui::Color32::RED, err);
@@ -128,29 +138,79 @@ impl eframe::App for App {
 
                 ui.separator();
 
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    egui::Grid::new("proc_grid")
-                        .striped(true)
-                        .min_col_width(80.0)
-                        .show(ui, |ui| {
-                            ui.strong("PID");
-                            ui.strong("Name");
-                            ui.strong("CPU");
-                            ui.strong("RAM");
-                            ui.strong("Disk R");
-                            ui.strong("Disk W");
-                            ui.end_row();
+                let (apps, background): (Vec<&ProcRow>, Vec<&ProcRow>) =
+                    self.processes.iter().partition(|p| p.has_window);
 
-                            for p in &self.processes {
-                                ui.label(p.pid.to_string());
-                                ui.label(&p.name);
-                                ui.label(format!("{:.1} %", p.cpu));
-                                ui.label(format!("{:.1} MB", formats::bytes_to_mb(p.memory_bytes)));
-                                ui.label(format!("{:.2} MB/s", formats::bps_to_mbps(p.read_bps)));
-                                ui.label(format!("{:.2} MB/s", formats::bps_to_mbps(p.write_bps)));
-                                ui.end_row();
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    // Draw one row: keep grid alignment by making EACH CELL clickable.
+                    let mut draw_row = |ui: &mut egui::Ui, p: &ProcRow| {
+                        let is_selected = self.selected_pid == Some(p.pid);
+
+                        let mut cell = |text: String| {
+                            let r = ui.selectable_label(is_selected, text);
+                            if r.clicked() {
+                                self.selected_pid = Some(p.pid);
                             }
+                        };
+
+                        cell(p.pid.to_string());
+                        cell(p.name.clone());
+                        cell(format!("{:.1} %", p.cpu));
+                        cell(format!("{:.1} MB", formats::bytes_to_mb(p.memory_bytes)));
+                        cell(format!("{:.2} MB/s", formats::bps_to_mbps(p.read_bps)));
+                        cell(format!("{:.2} MB/s", formats::bps_to_mbps(p.write_bps)));
+                    };
+
+                    egui::CollapsingHeader::new(format!("Apps ({})", apps.len()))
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            egui::Grid::new("proc_grid_apps")
+                                .striped(true)
+                                .min_col_width(80.0)
+                                .show(ui, |ui| {
+                                    ui.strong("PID");
+                                    ui.strong("Name");
+                                    ui.strong("CPU");
+                                    ui.strong("RAM");
+                                    ui.strong("Disk R");
+                                    ui.strong("Disk W");
+                                    ui.end_row();
+
+                                    for p in apps {
+                                        draw_row(ui, p);
+                                        ui.end_row();
+                                    }
+                                });
                         });
+
+                    ui.add_space(8.0);
+                    ui.separator();
+                    ui.add_space(8.0);
+
+                    egui::CollapsingHeader::new(format!(
+                        "Background processes ({})",
+                        background.len()
+                    ))
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        egui::Grid::new("proc_grid_bg")
+                            .striped(true)
+                            .min_col_width(80.0)
+                            .show(ui, |ui| {
+                                ui.strong("PID");
+                                ui.strong("Name");
+                                ui.strong("CPU");
+                                ui.strong("RAM");
+                                ui.strong("Disk R");
+                                ui.strong("Disk W");
+                                ui.end_row();
+
+                                for p in background {
+                                    draw_row(ui, p);
+                                    ui.end_row();
+                                }
+                            });
+                    });
                 });
             }
             Tool::Services => {

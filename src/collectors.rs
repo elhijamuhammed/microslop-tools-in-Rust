@@ -14,6 +14,7 @@ pub fn init_app() -> App {
         selected_tool: Tool::Processes,
         processes: Vec::new(),
         error: None,
+        selected_pid: None,
         sys,
         nets,
         prev_proc_disk: std::collections::HashMap::new(),
@@ -105,7 +106,7 @@ pub fn refresh_processes(app: &mut App, dt: f64) {
             memory_bytes,
             read_bps,
             write_bps,
-            has_window: window_pids.contains(&pid_i32), // <-- NEW
+            has_window: window_pids.contains(&pid_i32),
         });
     }
 
@@ -154,20 +155,4 @@ fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
         let _ = EnumWindows(Some(enum_windows_proc), lparam);
     }
     set
-}
-
-#[cfg(not(windows))]
-fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
-    std::collections::HashSet::new()
-}
-
-#[cfg(not(windows))]
-fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
-    std::collections::HashSet::new()
-}
-
-#[cfg(not(windows))]
-fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
-    // Non-Windows stub (you can implement X11/macOS later)
-    std::collections::HashSet::new()
 }
