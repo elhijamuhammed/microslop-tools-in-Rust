@@ -10,6 +10,7 @@ pub struct ProcRow {
     pub memory_bytes: u64,
     pub read_bps: f64,
     pub write_bps: f64,
+    pub has_window: bool,
 }
 
 pub struct App {

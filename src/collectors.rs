@@ -69,6 +69,9 @@ pub fn refresh_processes(app: &mut App, dt: f64) {
 
     app.sys.refresh_processes(ProcessesToUpdate::All, true);
 
+    // NEW: collect PIDs that own a real top-level window (Windows), or empty set otherwise
+    let window_pids = pids_with_top_level_windows();
+
     let mut rows: Vec<ProcRow> = Vec::with_capacity(app.sys.processes().len());
 
     for (pid, p) in app.sys.processes().iter() {
@@ -102,9 +105,69 @@ pub fn refresh_processes(app: &mut App, dt: f64) {
             memory_bytes,
             read_bps,
             write_bps,
+            has_window: window_pids.contains(&pid_i32), // <-- NEW
         });
     }
 
     rows.sort_by(|a, b| b.cpu.partial_cmp(&a.cpu).unwrap_or(Ordering::Equal));
     app.processes = rows;
+}
+
+#[cfg(windows)]
+fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
+    use std::collections::HashSet;
+
+    use windows::Win32::Foundation::{HWND, LPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetWindow, GetWindowTextLengthW, GetWindowThreadProcessId, IsWindowVisible,
+        GW_OWNER,
+    };
+
+    unsafe extern "system" fn enum_windows_proc( hwnd: HWND, lparam: LPARAM, ) -> windows::core::BOOL {
+        let set = &mut *(lparam.0 as *mut std::collections::HashSet<i32>);
+
+        if !IsWindowVisible(hwnd).as_bool() {
+            return windows::core::BOOL(1);
+        }
+
+        let owner = GetWindow(hwnd, GW_OWNER).unwrap_or(HWND(std::ptr::null_mut()));
+        if owner != HWND(std::ptr::null_mut()) {
+            return windows::core::BOOL(1);
+        }
+
+        if GetWindowTextLengthW(hwnd) == 0 {
+            return windows::core::BOOL(1);
+        }
+
+        let mut pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        if pid != 0 {
+            set.insert(pid as i32);
+        }
+
+        windows::core::BOOL(1)
+    }
+
+    let mut set: HashSet<i32> = HashSet::new();
+    unsafe {
+        let lparam = LPARAM((&mut set as *mut HashSet<i32>) as isize);
+        let _ = EnumWindows(Some(enum_windows_proc), lparam);
+    }
+    set
+}
+
+#[cfg(not(windows))]
+fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
+    std::collections::HashSet::new()
+}
+
+#[cfg(not(windows))]
+fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
+    std::collections::HashSet::new()
+}
+
+#[cfg(not(windows))]
+fn pids_with_top_level_windows() -> std::collections::HashSet<i32> {
+    // Non-Windows stub (you can implement X11/macOS later)
+    std::collections::HashSet::new()
 }
